@@ -13,10 +13,11 @@ import os
 logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
+
+
 def initialize_agents(api_key: str) -> tuple [Agent, Agent, Agent, Agent]:
     try:
         model = Gemini(id="gemini-2.0-flash-exp", api_key=api_key)
-
         therapist_agent = Agent(
             model=model,
             name="Therapist Agent",
@@ -80,6 +81,7 @@ def initialize_agents(api_key: str) -> tuple [Agent, Agent, Agent, Agent]:
     except Exception as e:
         st.error(f"Error initializing agents: {str(e)}")
         return None, None, None, None
+    
 
 # Set page config and UI element
 st.set_page_config(
@@ -122,6 +124,25 @@ st.markdown("""
     ### Your AI-powered breakup recovery team is here to help!
     Share your feelings and chat screenshots, and we'll help you navigate through this tough time.
 """)
+
+# Try an agent to systhesize all response that make more comprehensive output
+model = Gemini(id="gemini-2.0-flash-exp", api_key=api_key)
+def synthesize_responses(responses: List[str], model):
+    synth_agent = Agent(
+        model=model,
+        name="Synthesis Agent",
+        instructions=[
+            "You are a helpful assistant that combines multiple pieces of text into one cohesive, comprehensive, and fluent summary.",
+            "Avoid redundancy and ensure logical flow.",
+            "Keep the tone supportive and encouraging.",
+            "Limit length to about 300 words."
+        ],
+        markdown=True
+    )
+    combined_text = "\n\n".join(responses)
+    final_response = synth_agent.run(message=f"Combine and polish the following texts:\n{combined_text}")
+    return final_response.content
+
 
 # Input section
 col1, col2 = st.columns(2)
@@ -193,13 +214,13 @@ if st.button("Get Recovery Plan 💝", type="primary"):
                         4. Words of encouragement
                         """
 
-                        response = therapist_agent.run(
+                        therapist_response = therapist_agent.run(
                             message=therapist_prompt,
                             images=all_images
                         )
 
-                        st.subheader("🤗 Emotional Support")
-                        st.markdown(response.content)
+                        #.subheader("🤗 Emotional Support")
+                        #st.markdown(response.content)
                     
                     # Closure Messages
                     with st.spinner("✍️ Crafting closure messages..."):
@@ -214,13 +235,13 @@ if st.button("Get Recovery Plan 💝", type="primary"):
                         4. Moving forward strategies
                         """
 
-                        response = closure_agent.run(
+                        closure_response = closure_agent.run(
                             message=closure_prompt,
                             images=all_images
                         )
 
-                        st.subheader("✍️ Finding Closure")
-                        st.markdown(response.content)
+                        #st.subheader("✍️ Finding Closure")
+                        #st.markdown(response.content)
                     
                     # Recovery Plan
                     with st.spinner("📅 Creating your recovery plan..."):
@@ -235,13 +256,13 @@ if st.button("Get Recovery Plan 💝", type="primary"):
                         4. Mood-lifting music suggestions
                         """
                         
-                        response = routine_planner_agent.run(
+                        routine_response = routine_planner_agent.run(
                             message=routine_prompt,
                             images=all_images
                         )
                         
-                        st.subheader("📅 Your Recovery Plan")
-                        st.markdown(response.content)
+                        #st.subheader("📅 Your Recovery Plan")
+                        #st.markdown(response.content)
                     
                     # Honest Feedback
                     with st.spinner("💪 Getting honest perspective..."):
@@ -256,13 +277,24 @@ if st.button("Get Recovery Plan 💝", type="primary"):
                         4. Actionable steps
                         """
                         
-                        response = brutal_honesty_agent.run(
+                        honesty_response = brutal_honesty_agent.run(
                             message=honesty_prompt,
                             images=all_images
                         )
                         
-                        st.subheader("💪 Honest Perspective")
-                        st.markdown(response.content)
+                        #st.subheader("💪 Honest Perspective")
+                        #st.markdown(response.content)
+
+                    responses = [
+                        therapist_response.content,
+                        closure_response.content,
+                        routine_response.content,
+                        honesty_response.content,
+                    ]
+
+                    final_summary = synthesize_responses(responses, model)
+                    st.subheader("💡 Comprehensive Recovery Summary")
+                    st.markdown(final_summary)    
                     
                 except Exception as e:
                     logger.error(f"Error during analysis: {str(e)}")
@@ -271,6 +303,7 @@ if st.button("Get Recovery Plan 💝", type="primary"):
                 st.warning("Please share your feelings or upload screenshots to get help.")
         else:
             st.error("Failed to initialize agents. Please check your API key.")
+
 
 # Footer
 st.markdown("---")
